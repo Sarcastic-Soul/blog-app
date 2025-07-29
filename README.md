@@ -33,8 +33,8 @@ A modern, elegant blog platform built with React, Vite, and Appwrite. Where thou
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/ink-and-irony-blog.git
-cd ink-and-irony-blog
+git clone https://github.com/Sarcastic-Soul/blog-app.git
+cd blog-app
 npm install
 ```
 
@@ -127,8 +127,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Anish Kumar - [@your-twitter](https://twitter.com/your-twitter) - anish23101@iiitnr.edu.in
 
-Project Link: [https://github.com/yourusername/ink-and-irony-blog](https://github.com/yourusername/ink-and-irony-blog)
+Project Link: [https://github.com/Sarcastic-Soul/blog-app](https://github.com/Sarcastic-Soul/blog-app)
+
+Live Demo: [https://blog-app-amber-five-52.vercel.app](https://blog-app-amber-five-52.vercel.app)
 
 ---
 
-Made with ❤️ and ☕ by [Anish Kumar](https://github.com/yourusername)
+Made with ❤️ and ☕ by [Anish Kumar](https://github.com/Sarcastic-Soul)
