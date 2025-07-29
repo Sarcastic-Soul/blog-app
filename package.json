@@ -1,8 +1,9 @@
 {
-  "name": "react-starter-kit-for-appwrite",
+  "name": "ink-and-irony-blog",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "A modern blog platform built with React, Vite, and Appwrite - Ink and Irony",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

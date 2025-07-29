@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Moon, Sun, LogOut, LogIn, Menu, X, Home, BookOpen, User, Plus, BarChart3 } from "lucide-react";
+import { Moon, Sun, LogOut, LogIn, Menu, X, Home, BookOpen, User, Plus, BarChart3, PenTool } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ADMIN_TEAM_ID } from "../lib/config";
 
@@ -61,9 +61,9 @@ export default function Header() {
                     >
                         <Link
                             to="/"
-                            className="flex items-center gap-3 text-2xl font-bold tracking-wide text-yellow-300 hover:text-yellow-400 transition-colors"
+                            className="flex items-center gap-3 text-2xl font-bold tracking-wide text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
                         >
-                            <span className="text-3xl">🦆</span>
+                            <PenTool className="w-8 h-8" />
                             <span className="hidden sm:block">Ink & Irony</span>
                             <span className="sm:hidden">I&I</span>
                         </Link>
