@@ -10,7 +10,7 @@ import { ADMIN_TEAM_ID } from "../lib/config";
 import { Plus, Search, Filter, Grid, List, Loader, RefreshCw } from "lucide-react";
 
 export default function BlogsPage() {
-    const { user, userTeams, refreshAuth } = useAuth();
+    const { user, userTeams } = useAuth();
     const isAdmin = useMemo(() => userTeams.includes(ADMIN_TEAM_ID), [userTeams]);
 
     const [blogs, setBlogs] = useState([]);
@@ -74,14 +74,7 @@ export default function BlogsPage() {
         fetchBlogs();
     }, [fetchBlogs]);
 
-    // Check if we just came from OAuth redirect
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('oauth') || window.location.hash.includes('oauth')) {
-            // Refresh auth state after OAuth redirect
-            refreshAuth();
-        }
-    }, [refreshAuth]);    // Get all unique tags - now from database or fallback
+    // Get all unique tags - now from database or fallback
     const allTags = useMemo(() => availableTags, [availableTags]);
 
     // Filter blogs for local filtering (when not using API filters)
