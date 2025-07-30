@@ -1,6 +1,12 @@
 // src/components/BlogContentEditor.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import {
+    Bold, Italic, Underline, Strikethrough, Code, List, ListOrdered,
+    Quote, Image as ImageIcon, Link as LinkIcon, AlignLeft, AlignCenter,
+    AlignRight, AlignJustify, Heading1, Heading2, Heading3, Heading4,
+    Undo, Redo, Edit3, Type, Palette, Minus
+} from "lucide-react";
 
 // Core extensions
 import { StarterKit } from "@tiptap/starter-kit";
@@ -12,9 +18,10 @@ import { Typography } from "@tiptap/extension-typography";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
-import { Underline } from "@tiptap/extension-underline";
+import { Underline as UnderlineExtension } from "@tiptap/extension-underline";
 import { Link } from "@tiptap/extension-link";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { Blockquote } from "@tiptap/extension-blockquote";
 
 // Syntax highlighting
 import { createLowlight, common } from "lowlight";
@@ -28,35 +35,65 @@ const lowlight = createLowlight(common);
 lowlight.register({ javascript, python, css, html });
 
 export default function BlogContentEditor({ initialContent, onContentUpdate }) {
-    const [showPreview, setShowPreview] = useState(false);
-    const [activeHighlightColor, setActiveHighlightColor] = useState("yellow");
     const [showLinkDialog, setShowLinkDialog] = useState(false);
+    const [showImageDialog, setShowImageDialog] = useState(false);
     const [linkUrl, setLinkUrl] = useState("");
     const [linkText, setLinkText] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+    const [imageAlt, setImageAlt] = useState("");
     const linkDialogRef = useRef(null);
+    const imageDialogRef = useRef(null);
+
+    // Auto-save content to localStorage
+    const saveToLocalStorage = (content) => {
+        try {
+            localStorage.setItem('blog-editor-content', JSON.stringify(content));
+        } catch (error) {
+            console.warn('Failed to save to localStorage:', error);
+        }
+    };
+
+    // Load content from localStorage
+    const loadFromLocalStorage = () => {
+        try {
+            const saved = localStorage.getItem('blog-editor-content');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.warn('Failed to load from localStorage:', error);
+            return null;
+        }
+    };
 
     const editor = useEditor({
-        editable: !showPreview,
+        editable: true,
         extensions: [
             StarterKit.configure({
-                codeBlock: false, // We'll use CodeBlockLowlight instead
+                codeBlock: false,
+                blockquote: false,
             }),
             CodeBlockLowlight.configure({
                 lowlight,
                 HTMLAttributes: {
-                    class: 'hljs',
+                    class: 'hljs code-block',
+                }
+            }),
+            Blockquote.configure({
+                HTMLAttributes: {
+                    class: 'custom-blockquote',
                 }
             }),
             Image.configure({
                 HTMLAttributes: {
-                    class: 'max-w-full h-auto rounded-lg',
+                    class: 'blog-image',
                 },
+                inline: false,
+                allowBase64: true,
             }),
             TaskList,
             TaskItem.configure({
                 nested: true,
                 HTMLAttributes: {
-                    class: 'flex items-start gap-2',
+                    class: 'task-item',
                 }
             }),
             TextAlign.configure({
@@ -66,89 +103,139 @@ export default function BlogContentEditor({ initialContent, onContentUpdate }) {
             Highlight.configure({
                 multicolor: true,
                 HTMLAttributes: {
-                    class: 'px-1 rounded',
+                    class: 'highlight-text',
                 }
             }),
             Subscript,
             Superscript,
-            Underline,
+            UnderlineExtension,
             Link.configure({
                 openOnClick: false,
                 HTMLAttributes: {
-                    class: 'text-blue-600 hover:text-blue-800 underline',
+                    class: 'blog-link',
                 },
             }),
         ],
-        content: initialContent || `
-            <h1>Getting started</h1>
-            <p>Welcome to your enhanced blog editor! This editor includes all the features from the Tiptap Simple Editor template.</p>
-            <h2>Features</h2>
+        content: initialContent || loadFromLocalStorage() || `
+            <h1>Welcome to Your Blog Editor</h1>
+            <p>Start writing your amazing blog post here! This editor provides all the tools you need to create professional content.</p>
+            <h2>What you can do:</h2>
             <ul>
-                <li><strong>Rich formatting</strong> with bold, italic, underline, and more</li>
-                <li><strong>Headings</strong> from H1 to H6</li>
-                <li><strong>Lists</strong> including bullet lists, numbered lists, and task lists</li>
-                <li><strong>Code blocks</strong> with syntax highlighting</li>
-                <li><strong>Images</strong> and links</li>
-                <li><strong>Text alignment</strong> options</li>
-                <li><strong>Highlighting</strong> with multiple colors</li>
+                <li><strong>Format text</strong> with bold, italic, underline, and more</li>
+                <li><strong>Add headings</strong> to structure your content</li>
+                <li><strong>Create lists</strong> and task lists for better organization</li>
+                <li><strong>Insert images</strong> and links to enrich your content</li>
+                <li><strong>Use code blocks</strong> with syntax highlighting</li>
+                <li><strong>Highlight important text</strong> with different colors</li>
             </ul>
-            <p>Try the features above and start writing your blog post!</p>
+            <blockquote>
+                <p>Start creating something amazing!</p>
+            </blockquote>
         `,
         editorProps: {
             attributes: {
-                class: "prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none p-6 dark:prose-invert max-w-none",
-                autocomplete: "off",
-                autocorrect: "off",
-                autocapitalize: "off",
-            },
-            handleKeyDown(view, event) {
-                if (showPreview) {
-                    event.preventDefault();
-                    return true;
-                }
-                return false;
+                class: "blog-editor-content focus:outline-none",
+                spellcheck: "true",
             },
         },
         onUpdate: ({ editor }) => {
+            const content = editor.getJSON();
+            // Auto-save to localStorage
+            saveToLocalStorage(content);
+            // Call parent callback
             if (onContentUpdate) {
-                onContentUpdate(editor.getJSON());
+                onContentUpdate(content);
             }
         },
     });
 
-    // Handle link dialog
+    // Handle dialogs
     useEffect(() => {
         if (showLinkDialog && linkDialogRef.current) {
             linkDialogRef.current.focus();
         }
     }, [showLinkDialog]);
 
+    useEffect(() => {
+        if (showImageDialog && imageDialogRef.current) {
+            imageDialogRef.current.focus();
+        }
+    }, [showImageDialog]);
+
     if (!editor) {
-        return <div className="flex items-center justify-center p-8">Loading editor...</div>;
+        return (
+            <div className="flex items-center justify-center p-12 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Loading editor...</p>
+                </div>
+            </div>
+        );
     }
 
     // Helper functions
     const isActive = (name, attrs = {}) => editor.isActive(name, attrs);
 
-    const buttonClass = (active = false) => `
-        px-3 py-1.5 rounded text-sm font-medium transition-colors
-        ${active
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-        }
-        ${showPreview ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-    `;
+    const ToolbarButton = ({ onClick, disabled, active, title, children, className = "" }) => (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            className={`
+                relative p-2 rounded-lg transition-all duration-200 group
+                ${active
+                    ? 'bg-yellow-400 text-gray-900 shadow-sm'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                }
+                ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-sm'}
+                ${className}
+            `}
+        >
+            {children}
+            {title && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                    {title}
+                </div>
+            )}
+        </button>
+    );
+
+    const ColorButton = ({ color, active, onClick, title }) => (
+        <button
+            onClick={onClick}
+            disabled={false}
+            title={title}
+            className={`
+                w-8 h-8 rounded-lg border-2 transition-all duration-200 hover:scale-110
+                ${active
+                    ? 'border-gray-900 dark:border-white shadow-lg'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                }
+                cursor-pointer
+            `}
+            style={{ backgroundColor: getHighlightColor(color) }}
+        />
+    );
 
     const insertImage = () => {
-        if (showPreview) return;
-        const url = window.prompt("Enter image URL:");
-        if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
+        setImageUrl("");
+        setImageAlt("");
+        setShowImageDialog(true);
+    };
+
+    const handleImageInsert = () => {
+        if (imageUrl) {
+            editor.chain().focus().setImage({
+                src: imageUrl,
+                alt: imageAlt || "Blog image"
+            }).run();
         }
+        setShowImageDialog(false);
+        setImageUrl("");
+        setImageAlt("");
     };
 
     const insertCodeBlock = () => {
-        if (showPreview) return;
         const language = window.prompt(
             "Enter programming language (javascript, python, css, html, etc.):",
             "javascript"
@@ -157,8 +244,6 @@ export default function BlogContentEditor({ initialContent, onContentUpdate }) {
     };
 
     const toggleHighlight = (color) => {
-        if (showPreview) return;
-        // Use the color name directly, not CSS variable
         if (editor.isActive('highlight', { color })) {
             editor.chain().focus().unsetHighlight().run();
         } else {
@@ -167,7 +252,6 @@ export default function BlogContentEditor({ initialContent, onContentUpdate }) {
     };
 
     const openLinkDialog = () => {
-        if (showPreview) return;
         const { from, to } = editor.state.selection;
         if (from === to) {
             alert("Please select some text first to create a link.");
@@ -192,284 +276,323 @@ export default function BlogContentEditor({ initialContent, onContentUpdate }) {
         editor.chain().focus().unsetLink().run();
     };
 
+    // Function to clear saved content (call this when blog is published)
+    const clearSavedContent = () => {
+        try {
+            localStorage.removeItem('blog-editor-content');
+        } catch (error) {
+            console.warn('Failed to clear localStorage:', error);
+        }
+    };
+
+    // Expose clearSavedContent function to parent component
+    useEffect(() => {
+        if (onContentUpdate && typeof onContentUpdate === 'function') {
+            onContentUpdate.clearSaved = clearSavedContent;
+        }
+    }, [onContentUpdate]);
+
     return (
-        <div className="w-full max-w-4xl mx-auto space-y-4">
+        <div className="w-full max-w-6xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex items-center">
+                <div className="flex items-center space-x-3">
+                    <Edit3 className="h-6 w-6 text-yellow-400" />
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Blog Editor
+                    </h2>
+                </div>
+            </div>
+
             {/* Toolbar */}
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-3 shadow-sm z-10">
-                <div className="flex flex-wrap items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
                     {/* Undo/Redo */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().undo().run()}
-                            disabled={showPreview || !editor.can().undo()}
-                            className={buttonClass()}
+                            disabled={!editor.can().undo()}
                             title="Undo (Ctrl+Z)"
                         >
-                            ↶
-                        </button>
-                        <button
+                            <Undo className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().redo().run()}
-                            disabled={showPreview || !editor.can().redo()}
-                            className={buttonClass()}
+                            disabled={!editor.can().redo()}
                             title="Redo (Ctrl+Y)"
                         >
-                            ↷
-                        </button>
+                            <Redo className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Headings */}
-                    <div className="flex gap-1">
-                        {[1, 2, 3, 4].map((level) => (
-                            <button
-                                key={level}
-                                onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
-                                disabled={showPreview}
-                                className={buttonClass(isActive("heading", { level }))}
-                                title={`Heading ${level}`}
-                            >
-                                H{level}
-                            </button>
-                        ))}
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                            active={isActive("heading", { level: 1 })}
+                            title="Heading 1"
+                        >
+                            <Heading1 className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                            active={isActive("heading", { level: 2 })}
+                            title="Heading 2"
+                        >
+                            <Heading2 className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                            active={isActive("heading", { level: 3 })}
+                            title="Heading 3"
+                        >
+                            <Heading3 className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+                            active={isActive("heading", { level: 4 })}
+                            title="Heading 4"
+                        >
+                            <Heading4 className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Text Formatting */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleBold().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("bold"))}
+                            active={isActive("bold")}
                             title="Bold (Ctrl+B)"
                         >
-                            <strong>B</strong>
-                        </button>
-                        <button
+                            <Bold className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleItalic().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("italic"))}
+                            active={isActive("italic")}
                             title="Italic (Ctrl+I)"
                         >
-                            <em>I</em>
-                        </button>
-                        <button
+                            <Italic className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleUnderline().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("underline"))}
+                            active={isActive("underline")}
                             title="Underline (Ctrl+U)"
                         >
-                            <u>U</u>
-                        </button>
-                        <button
+                            <Underline className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleStrike().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("strike"))}
+                            active={isActive("strike")}
                             title="Strikethrough"
                         >
-                            <s>S</s>
-                        </button>
-                        <button
+                            <Strikethrough className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleCode().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("code"))}
+                            active={isActive("code")}
                             title="Inline Code"
                         >
-                            &lt;/&gt;
-                        </button>
+                            <Code className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Lists */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleBulletList().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("bulletList"))}
+                            active={isActive("bulletList")}
                             title="Bullet List"
                         >
-                            • List
-                        </button>
-                        <button
+                            <List className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("orderedList"))}
+                            active={isActive("orderedList")}
                             title="Numbered List"
                         >
-                            1. List
-                        </button>
-                        <button
+                            <ListOrdered className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleTaskList().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("taskList"))}
+                            active={isActive("taskList")}
                             title="Task List"
+                            className="font-mono text-sm"
                         >
-                            ☑ Task
-                        </button>
+                            ☑
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Block Elements */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("blockquote"))}
-                            title="Blockquote"
+                            active={isActive("blockquote")}
+                            title="Quote"
                         >
-                            " "
-                        </button>
-                        <button
+                            <Quote className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={insertCodeBlock}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("codeBlock"))}
+                            active={isActive("codeBlock")}
                             title="Code Block"
+                            className="font-mono text-sm"
                         >
                             {"{ }"}
-                        </button>
-                        <button
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().setHorizontalRule().run()}
-                            disabled={showPreview}
-                            className={buttonClass()}
                             title="Horizontal Rule"
                         >
-                            ---
-                        </button>
+                            <Minus className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Text Alignment */}
-                    <div className="flex gap-1">
-                        {['left', 'center', 'right', 'justify'].map((align) => (
-                            <button
-                                key={align}
-                                onClick={() => editor.chain().focus().setTextAlign(align).run()}
-                                disabled={showPreview}
-                                className={buttonClass(isActive({ textAlign: align }))}
-                                title={`Align ${align}`}
-                            >
-                                {align === 'left' && '⟵'}
-                                {align === 'center' && '⟷'}
-                                {align === 'right' && '⟶'}
-                                {align === 'justify' && '⟵⟶'}
-                            </button>
-                        ))}
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                            active={isActive({ textAlign: 'left' })}
+                            title="Align Left"
+                        >
+                            <AlignLeft className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                            active={isActive({ textAlign: 'center' })}
+                            title="Align Center"
+                        >
+                            <AlignCenter className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                            active={isActive({ textAlign: 'right' })}
+                            title="Align Right"
+                        >
+                            <AlignRight className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                            active={isActive({ textAlign: 'justify' })}
+                            title="Justify"
+                        >
+                            <AlignJustify className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Superscript/Subscript */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleSuperscript().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("superscript"))}
+                            active={isActive("superscript")}
                             title="Superscript"
+                            className="text-xs"
                         >
                             x²
-                        </button>
-                        <button
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={() => editor.chain().focus().toggleSubscript().run()}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("subscript"))}
+                            active={isActive("subscript")}
                             title="Subscript"
+                            className="text-xs"
                         >
                             x₂
-                        </button>
+                        </ToolbarButton>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Highlight Colors */}
-                    <div className="flex gap-1">
-                        {['yellow', 'green', 'blue', 'red', 'purple'].map((color) => (
-                            <button
-                                key={color}
-                                onClick={() => toggleHighlight(color)}
-                                disabled={showPreview}
-                                className={`w-6 h-6 rounded border-2 ${isActive('highlight', { color })
-                                    ? 'border-gray-800 dark:border-white'
-                                    : 'border-gray-300 dark:border-gray-600'
-                                    }`}
-                                style={{ backgroundColor: getHighlightColor(color) }}
-                                title={`Highlight ${color}`}
-                            />
-                        ))}
+                    <div className="flex items-center space-x-2">
+                        <Palette className="h-4 w-4 text-gray-500" />
+                        <div className="flex space-x-1">
+                            {['yellow', 'green', 'blue', 'red', 'purple'].map((color) => (
+                                <ColorButton
+                                    key={color}
+                                    color={color}
+                                    active={isActive('highlight', { color })}
+                                    onClick={() => toggleHighlight(color)}
+                                    title={`Highlight ${color}`}
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
                     {/* Media & Links */}
-                    <div className="flex gap-1">
-                        <button
+                    <div className="flex items-center space-x-1">
+                        <ToolbarButton
                             onClick={insertImage}
-                            disabled={showPreview}
-                            className={buttonClass()}
                             title="Insert Image"
                         >
-                            🖼️
-                        </button>
-                        <button
+                            <ImageIcon className="h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
                             onClick={isActive("link") ? removeLink : openLinkDialog}
-                            disabled={showPreview}
-                            className={buttonClass(isActive("link"))}
+                            active={isActive("link")}
                             title={isActive("link") ? "Remove Link" : "Add Link"}
                         >
-                            🔗
-                        </button>
+                            <LinkIcon className="h-4 w-4" />
+                        </ToolbarButton>
                     </div>
-
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-
-                    {/* Preview Toggle */}
-                    <button
-                        onClick={() => setShowPreview(!showPreview)}
-                        className="ml-auto px-4 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                    >
-                        {showPreview ? "Edit" : "Preview"}
-                    </button>
                 </div>
             </div>
 
             {/* Link Dialog */}
             {showLinkDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold mb-4">Add Link</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Selected Text:</label>
-                                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm">
-                                    {linkText}
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+                        <div className="p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                Add Link
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Selected Text:
+                                    </label>
+                                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600">
+                                        {linkText}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        URL:
+                                    </label>
+                                    <input
+                                        ref={linkDialogRef}
+                                        type="url"
+                                        value={linkUrl}
+                                        onChange={(e) => setLinkUrl(e.target.value)}
+                                        placeholder="https://example.com"
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                        onKeyPress={(e) => e.key === 'Enter' && insertLink()}
+                                    />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">URL:</label>
-                                <input
-                                    ref={linkDialogRef}
-                                    type="url"
-                                    value={linkUrl}
-                                    onChange={(e) => setLinkUrl(e.target.value)}
-                                    placeholder="https://example.com"
-                                    className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                                    onKeyPress={(e) => e.key === 'Enter' && insertLink()}
-                                />
-                            </div>
-                            <div className="flex gap-2 justify-end">
+                            <div className="flex gap-3 justify-end mt-6">
                                 <button
                                     onClick={() => setShowLinkDialog(false)}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={insertLink}
                                     disabled={!linkUrl}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                    className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Add Link
                                 </button>
@@ -479,199 +602,398 @@ export default function BlogContentEditor({ initialContent, onContentUpdate }) {
                 </div>
             )}
 
+            {/* Image Dialog */}
+            {showImageDialog && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+                        <div className="p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                Insert Image
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Image URL:
+                                    </label>
+                                    <input
+                                        ref={imageDialogRef}
+                                        type="url"
+                                        value={imageUrl}
+                                        onChange={(e) => setImageUrl(e.target.value)}
+                                        placeholder="https://example.com/image.jpg"
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Alt Text (Optional):
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={imageAlt}
+                                        onChange={(e) => setImageAlt(e.target.value)}
+                                        placeholder="Describe the image..."
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                        onKeyPress={(e) => e.key === 'Enter' && handleImageInsert()}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-3 justify-end mt-6">
+                                <button
+                                    onClick={() => setShowImageDialog(false)}
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleImageInsert}
+                                    disabled={!imageUrl}
+                                    className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Insert Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Editor Container */}
-            <div className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 min-h-[500px]">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
                 <EditorContent
                     editor={editor}
-                    className="prose-editor-content"
+                    className="blog-editor-wrapper"
                 />
             </div>
 
             {/* Custom Styles */}
-            <style jsx>{`
-                .prose-editor-content .ProseMirror {
+            <style>{`
+                .blog-editor-wrapper .ProseMirror {
                     outline: none;
-                    padding: 1.5rem;
-                    min-height: 500px;
+                    padding: 2rem;
+                    min-height: 600px;
+                    max-width: none;
+                    font-family: 'Inter', sans-serif;
+                    line-height: 1.7;
+                    color: #111827 !important;
                 }
                 
-                /* Heading styles */
-                .prose-editor-content .ProseMirror h1 {
-                    font-size: 2rem;
-                    font-weight: bold;
-                    margin: 1.5rem 0 1rem 0;
+                .dark .blog-editor-wrapper .ProseMirror {
+                    color: #f9fafb !important;
+                }
+                
+                /* Ensure text input is always visible */
+                .blog-editor-wrapper .ProseMirror * {
+                    color: inherit !important;
+                }
+                
+                .blog-editor-wrapper .ProseMirror p {
+                    color: #111827 !important;
+                }
+                
+                .dark .blog-editor-wrapper .ProseMirror p {
+                    color: #f9fafb !important;
+                }
+                
+                /* Heading styles matching the blog theme */
+                .blog-editor-wrapper .ProseMirror h1 {
+                    font-size: 2.5rem;
+                    font-weight: 700;
+                    margin: 2rem 0 1.5rem 0;
                     line-height: 1.2;
+                    color: #fbbf24;
                 }
                 
-                .prose-editor-content .ProseMirror h2 {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    margin: 1.25rem 0 0.75rem 0;
+                .blog-editor-wrapper .ProseMirror h2 {
+                    font-size: 2rem;
+                    font-weight: 600;
+                    margin: 1.75rem 0 1rem 0;
                     line-height: 1.3;
+                    color: #374151;
                 }
                 
-                .prose-editor-content .ProseMirror h3 {
+                .dark .blog-editor-wrapper .ProseMirror h2 {
+                    color: #f3f4f6;
+                }
+                
+                .blog-editor-wrapper .ProseMirror h3 {
+                    font-size: 1.5rem;
+                    font-weight: 600;
+                    margin: 1.5rem 0 0.75rem 0;
+                    line-height: 1.4;
+                    color: #374151;
+                }
+                
+                .dark .blog-editor-wrapper .ProseMirror h3 {
+                    color: #f3f4f6;
+                }
+                
+                .blog-editor-wrapper .ProseMirror h4 {
                     font-size: 1.25rem;
-                    font-weight: bold;
-                    margin: 1rem 0 0.5rem 0;
+                    font-weight: 600;
+                    margin: 1.25rem 0 0.5rem 0;
                     line-height: 1.4;
+                    color: #374151;
                 }
                 
-                .prose-editor-content .ProseMirror h4 {
-                    font-size: 1.125rem;
-                    font-weight: bold;
-                    margin: 0.875rem 0 0.5rem 0;
-                    line-height: 1.4;
+                .dark .blog-editor-wrapper .ProseMirror h4 {
+                    color: #f3f4f6;
+                }
+                
+                /* Paragraph styles */
+                .blog-editor-wrapper .ProseMirror p {
+                    margin: 1rem 0;
+                    line-height: 1.7;
+                    font-size: 1.1rem;
                 }
                 
                 /* List styles */
-                .prose-editor-content .ProseMirror ul {
+                .blog-editor-wrapper .ProseMirror ul,
+                .blog-editor-wrapper .ProseMirror ol {
+                    margin: 1.5rem 0;
+                    padding-left: 2rem;
+                }
+                
+                .blog-editor-wrapper .ProseMirror ul {
                     list-style-type: disc;
-                    margin: 1rem 0;
-                    padding-left: 1.5rem;
                 }
                 
-                .prose-editor-content .ProseMirror ol {
+                .blog-editor-wrapper .ProseMirror ol {
                     list-style-type: decimal;
-                    margin: 1rem 0;
-                    padding-left: 1.5rem;
                 }
                 
-                .prose-editor-content .ProseMirror li {
-                    margin: 0.25rem 0;
+                .blog-editor-wrapper .ProseMirror li {
+                    margin: 0.5rem 0;
                     line-height: 1.6;
+                    font-size: 1.1rem;
                 }
                 
-                .prose-editor-content .ProseMirror ul ul {
+                .blog-editor-wrapper .ProseMirror ul ul {
                     list-style-type: circle;
-                    margin: 0.25rem 0;
+                    margin: 0.5rem 0;
                 }
                 
-                .prose-editor-content .ProseMirror ul ul ul {
+                .blog-editor-wrapper .ProseMirror ul ul ul {
                     list-style-type: square;
                 }
                 
                 /* Task list styles */
-                .prose-editor-content .ProseMirror ul[data-type="taskList"] {
-                    list-style: none;
-                    padding-left: 0;
-                    margin: 1rem 0;
-                }
-                
-                .prose-editor-content .ProseMirror ul[data-type="taskList"] li {
+                .blog-editor-wrapper .ProseMirror .task-item {
                     display: flex;
                     align-items: flex-start;
-                    gap: 0.5rem;
-                    margin: 0.5rem 0;
+                    gap: 0.75rem;
+                    margin: 0.75rem 0;
+                    list-style: none;
                 }
                 
-                .prose-editor-content .ProseMirror ul[data-type="taskList"] li > label {
+                .blog-editor-wrapper .ProseMirror .task-item > label {
                     margin-top: 0.125rem;
                     cursor: pointer;
+                    flex-shrink: 0;
                 }
                 
-                .prose-editor-content .ProseMirror ul[data-type="taskList"] li > label > input {
+                .blog-editor-wrapper .ProseMirror .task-item > label > input {
                     margin: 0;
+                    width: 1.25rem;
+                    height: 1.25rem;
+                    accent-color: #fbbf24;
                 }
                 
-                .prose-editor-content .ProseMirror ul[data-type="taskList"] li > div {
+                .blog-editor-wrapper .ProseMirror .task-item > div {
                     flex: 1;
+                    font-size: 1.1rem;
+                }
+                
+                /* Blockquote styles matching the blog theme */
+                .blog-editor-wrapper .ProseMirror .custom-blockquote {
+                    border-left: 4px solid #fbbf24;
+                    padding: 1.5rem 2rem;
+                    margin: 2rem 0;
+                    background: #fffbeb;
+                    border-radius: 0 0.5rem 0.5rem 0;
+                    font-style: italic;
+                    font-size: 1.125rem;
+                    color: #92400e;
+                    position: relative;
+                }
+                
+                .dark .blog-editor-wrapper .ProseMirror .custom-blockquote {
+                    background: #1f2937;
+                    color: #fcd34d;
+                    border-left-color: #fbbf24;
+                }
+                
+                .blog-editor-wrapper .ProseMirror .custom-blockquote::before {
+                    content: '"';
+                    font-size: 4rem;
+                    color: #fbbf24;
+                    position: absolute;
+                    left: 0.5rem;
+                    top: -0.5rem;
+                    line-height: 1;
+                    opacity: 0.3;
+                }
+                
+                /* Code styles */
+                .blog-editor-wrapper .ProseMirror code {
+                    background: #f3f4f6;
+                    color: #dc2626;
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 0.375rem;
+                    font-size: 0.9em;
+                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    font-weight: 500;
+                }
+                
+                .dark .blog-editor-wrapper .ProseMirror code {
+                    background: #374151;
+                    color: #fca5a5;
+                }
+                
+                /* Code block styles */
+                .blog-editor-wrapper .ProseMirror .code-block {
+                    background: #1f2937;
+                    color: #f9fafb;
+                    padding: 1.5rem;
+                    border-radius: 0.75rem;
+                    overflow-x: auto;
+                    margin: 2rem 0;
+                    border: 1px solid #374151;
+                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    font-size: 0.875rem;
+                    line-height: 1.5;
+                }
+                
+                .blog-editor-wrapper .ProseMirror .code-block code {
+                    background: none;
+                    color: inherit;
+                    padding: 0;
+                    font-size: inherit;
+                }
+                
+                /* Image styles matching the blog theme */
+                .blog-editor-wrapper .ProseMirror .blog-image {
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 0.75rem;
+                    margin: 2rem auto;
+                    display: block;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                }
+                
+                /* Link styles matching the blog theme */
+                .blog-editor-wrapper .ProseMirror .blog-link {
+                    color: #fbbf24;
+                    text-decoration: underline;
+                    text-decoration-color: #fbbf24;
+                    text-underline-offset: 0.125rem;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+                
+                .blog-editor-wrapper .ProseMirror .blog-link:hover {
+                    color: #f59e0b;
+                    text-decoration-color: #f59e0b;
                 }
                 
                 /* Highlight styles */
-                .prose-editor-content .ProseMirror mark[data-color="yellow"] {
-                    background-color: #fef08a;
+                .blog-editor-wrapper .ProseMirror .highlight-text[data-color="yellow"] {
+                    background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%);
+                    background-repeat: no-repeat;
+                    background-size: 100% 0.75em;
+                    background-position: 0 88%;
                     color: #854d0e;
                     padding: 0.125rem 0.25rem;
                     border-radius: 0.25rem;
                 }
                 
-                .prose-editor-content .ProseMirror mark[data-color="green"] {
-                    background-color: #bbf7d0;
+                .blog-editor-wrapper .ProseMirror .highlight-text[data-color="green"] {
+                    background: linear-gradient(120deg, #bbf7d0 0%, #bbf7d0 100%);
+                    background-repeat: no-repeat;
+                    background-size: 100% 0.75em;
+                    background-position: 0 88%;
                     color: #14532d;
                     padding: 0.125rem 0.25rem;
                     border-radius: 0.25rem;
                 }
                 
-                .prose-editor-content .ProseMirror mark[data-color="blue"] {
-                    background-color: #bfdbfe;
+                .blog-editor-wrapper .ProseMirror .highlight-text[data-color="blue"] {
+                    background: linear-gradient(120deg, #bfdbfe 0%, #bfdbfe 100%);
+                    background-repeat: no-repeat;
+                    background-size: 100% 0.75em;
+                    background-position: 0 88%;
                     color: #1e3a8a;
                     padding: 0.125rem 0.25rem;
                     border-radius: 0.25rem;
                 }
                 
-                .prose-editor-content .ProseMirror mark[data-color="red"] {
-                    background-color: #fecaca;
+                .blog-editor-wrapper .ProseMirror .highlight-text[data-color="red"] {
+                    background: linear-gradient(120deg, #fecaca 0%, #fecaca 100%);
+                    background-repeat: no-repeat;
+                    background-size: 100% 0.75em;
+                    background-position: 0 88%;
                     color: #7f1d1d;
                     padding: 0.125rem 0.25rem;
                     border-radius: 0.25rem;
                 }
                 
-                .prose-editor-content .ProseMirror mark[data-color="purple"] {
-                    background-color: #e9d5ff;
+                .blog-editor-wrapper .ProseMirror .highlight-text[data-color="purple"] {
+                    background: linear-gradient(120deg, #e9d5ff 0%, #e9d5ff 100%);
+                    background-repeat: no-repeat;
+                    background-size: 100% 0.75em;
+                    background-position: 0 88%;
                     color: #581c87;
                     padding: 0.125rem 0.25rem;
                     border-radius: 0.25rem;
                 }
                 
-                /* Code styles */
-                .prose-editor-content .ProseMirror code {
-                    background-color: #f3f4f6;
-                    color: #374151;
-                    padding: 0.125rem 0.25rem;
-                    border-radius: 0.25rem;
-                    font-size: 0.875em;
-                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                /* Horizontal rule */
+                .blog-editor-wrapper .ProseMirror hr {
+                    border: none;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, #fbbf24, transparent);
+                    margin: 3rem 0;
+                    border-radius: 1px;
                 }
                 
-                .prose-editor-content .ProseMirror pre {
-                    background-color: #1f2937;
-                    color: #f9fafb;
-                    padding: 1rem;
-                    border-radius: 0.5rem;
-                    overflow-x: auto;
-                    margin: 1rem 0;
+                /* Focus styles */
+                .blog-editor-wrapper .ProseMirror:focus {
+                    outline: none;
                 }
                 
-                .prose-editor-content .ProseMirror pre code {
-                    background: none;
-                    color: inherit;
-                    padding: 0;
-                    font-size: 0.875rem;
+                /* Selection styles */
+                .blog-editor-wrapper .ProseMirror ::selection {
+                    background: #fef3c7;
+                    color: #92400e;
                 }
                 
-                /* Blockquote styles */
-                .prose-editor-content .ProseMirror blockquote {
-                    border-left: 4px solid #e5e7eb;
-                    padding-left: 1rem;
-                    margin: 1rem 0;
-                    font-style: italic;
-                    color: #6b7280;
+                .dark .blog-editor-wrapper .ProseMirror ::selection {
+                    background: #92400e;
+                    color: #fef3c7;
                 }
                 
-                /* Image styles */
-                .prose-editor-content .ProseMirror img {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 0.5rem;
-                    margin: 1rem 0;
+                /* Text alignment */
+                .blog-editor-wrapper .ProseMirror [style*="text-align: center"] {
+                    text-align: center;
                 }
                 
-                /* Paragraph styles */
-                .prose-editor-content .ProseMirror p {
-                    margin: 0.75rem 0;
-                    line-height: 1.6;
+                .blog-editor-wrapper .ProseMirror [style*="text-align: right"] {
+                    text-align: right;
                 }
                 
-                /* Dark mode adjustments */
-                .dark .prose-editor-content .ProseMirror code {
-                    background-color: #374151;
-                    color: #f3f4f6;
+                .blog-editor-wrapper .ProseMirror [style*="text-align: justify"] {
+                    text-align: justify;
                 }
                 
-                .dark .prose-editor-content .ProseMirror blockquote {
-                    border-left-color: #4b5563;
-                    color: #9ca3af;
+                /* Superscript and subscript */
+                .blog-editor-wrapper .ProseMirror sup {
+                    font-size: 0.75em;
+                    vertical-align: super;
+                }
+                
+                .blog-editor-wrapper .ProseMirror sub {
+                    font-size: 0.75em;
+                    vertical-align: sub;
                 }
             `}</style>
         </div>

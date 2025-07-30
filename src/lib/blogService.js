@@ -271,8 +271,38 @@ export class BlogService {
     // Helper: Calculate reading time
     static calculateReadTime(content) {
         const wordsPerMinute = 200;
-        const words = content.trim().split(/\s+/).length;
+
+        // If content is a JSON object (Tiptap format), extract text from it
+        let textContent = '';
+        if (typeof content === 'object' && content !== null) {
+            // Extract text from Tiptap JSON structure
+            textContent = this.extractTextFromTiptapJSON(content);
+        } else if (typeof content === 'string') {
+            // If it's HTML or plain text, strip HTML tags
+            textContent = content.replace(/<[^>]*>/g, '');
+        } else {
+            textContent = String(content || '');
+        }
+
+        const words = textContent.trim().split(/\s+/).filter(word => word.length > 0).length;
         return Math.max(1, Math.ceil(words / wordsPerMinute));
+    }
+
+    // Helper: Extract text content from Tiptap JSON
+    static extractTextFromTiptapJSON(json) {
+        if (!json || typeof json !== 'object') return '';
+
+        let text = '';
+
+        if (json.type === 'text') {
+            return json.text || '';
+        }
+
+        if (json.content && Array.isArray(json.content)) {
+            text += json.content.map(child => this.extractTextFromTiptapJSON(child)).join(' ');
+        }
+
+        return text;
     }
 
     // Get blog statistics
